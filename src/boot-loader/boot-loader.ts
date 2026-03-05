@@ -1,3 +1,5 @@
+import { logger } from "@/shared";
+
 /**
  * The BootLoader is the main entry point for the agentara application
  */
@@ -19,7 +21,18 @@ class BootLoader {
 
   private async _igniteKernel(): Promise<void> {
     const { default: Kernel } = await import("@/kernel");
+    const logo = `\n▗▄▖  ▗▄▄▖▗▄▄▄▖▗▖  ▗▖▗▄▄▄▖▗▄▖ ▗▄▄▖  ▗▄▖
+▐▌ ▐▌▐▌   ▐▌   ▐▛▚▖▐▌  █ ▐▌ ▐▌▐▌ ▐▌▐▌ ▐▌
+▐▛▀▜▌▐▌▝▜▌▐▛▀▀▘▐▌ ▝▜▌  █ ▐▛▀▜▌▐▛▀▚▖▐▛▀▜▌
+▐▌ ▐▌▝▚▄▞▘▐▙▄▄▖▐▌  ▐▌  █ ▐▌ ▐▌▐▌ ▐▌▐▌ ▐▌`;
+    console.info(
+      "\x1b[31m" +
+        logo +
+        "\x1b[0m" +
+        "\n\nCopyright (c) 2026 Agentara. All rights reserved.\nVisit https://github.com/agentara/agentara for more information.\n\n\n",
+    );
     await Kernel.__internalInitialize();
+    logger.info("🚀 Agentara is now running...");
   }
 }
 

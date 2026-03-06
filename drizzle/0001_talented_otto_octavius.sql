@@ -1,0 +1,1 @@
+ALTER TABLE `sessions` ADD `first_message` text DEFAULT '' NOT NULL;

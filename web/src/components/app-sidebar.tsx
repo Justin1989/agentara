@@ -99,7 +99,7 @@ function RecentsSidebarGroup({
                     params={{ sessionId: session.id }}
                   >
                     <MessageSquare />
-                    <span className="truncate">{session.id}</span>
+                    <span className="truncate">{session.first_message}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

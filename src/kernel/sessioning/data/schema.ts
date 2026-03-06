@@ -13,6 +13,8 @@ export const sessions = sqliteTable("sessions", {
   agent_type: text("agent_type").notNull(),
   /** Working directory the session was created with. */
   cwd: text("cwd").notNull(),
+  /** The text content of the session's first inbound message. */
+  first_message: text("first_message").notNull().default(""),
   /** Epoch milliseconds of the most recent message, or null if no messages yet. */
   last_message_created_at: integer("last_message_created_at"),
   /** Epoch milliseconds when the session was created. */

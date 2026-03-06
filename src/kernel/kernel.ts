@@ -83,6 +83,10 @@ class Kernel {
   ) => {
     const session = await this._sessionManager.resolveSession(sessionId);
     const inboundMessage = payload.message;
+    this._sessionManager.updateFirstMessage(
+      sessionId,
+      extractTextContent(inboundMessage),
+    );
     this._logger.info(
       {
         session_id: sessionId,

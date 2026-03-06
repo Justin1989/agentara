@@ -8,6 +8,13 @@
       "when": 1772727865302,
       "tag": "0000_abandoned_the_phantom",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1772786460888,
+      "tag": "0001_talented_otto_octavius",
+      "breakpoints": true
     }
   ]
 }

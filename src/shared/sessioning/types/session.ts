@@ -13,6 +13,8 @@ export const Session = z.object({
   agent_type: z.string(),
   /** Working directory the session was created with. */
   cwd: z.string(),
+  /** The text content of the session's first inbound message. */
+  first_message: z.string(),
   /** Epoch milliseconds of the most recent message, or null if no messages yet. */
   last_message_created_at: z.number().nullable(),
   /** Epoch milliseconds when the session was created. */

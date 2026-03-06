@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 import type { DrizzleDB } from "@/data";
 import { config, createLogger, uuid } from "@/shared";
@@ -166,6 +166,19 @@ export class SessionManager {
       .orderBy(desc(sessions.updated_at))
       .limit(limit)
       .all();
+  }
+
+  /**
+   * Sets the `first_message` for a session if it is still empty (write-once semantics).
+   * @param sessionId - The session identifier.
+   * @param firstMessage - The text content of the first inbound message.
+   */
+  updateFirstMessage(sessionId: string, firstMessage: string): void {
+    this._db
+      .update(sessions)
+      .set({ first_message: firstMessage, updated_at: Date.now() })
+      .where(and(eq(sessions.id, sessionId), eq(sessions.first_message, "")))
+      .run();
   }
 
   /**

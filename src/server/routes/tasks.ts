@@ -1,3 +1,4 @@
+import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
 import { kernel } from "@/kernel";
@@ -15,12 +16,19 @@ export const taskRoutes = new Hono()
     const cronjobs = await kernel.taskDispatcher.getCronjobs();
     return c.json(cronjobs);
   })
-  .post("/dispatch", async (c) => {
-    const body = await c.req.json().catch(() => null);
-    const parsed = InboundMessageTaskPayload.safeParse(body);
-    if (!parsed.success) {
-      return c.json({ error: parsed.error.flatten() }, 400);
-    }
-    const jobId = await kernel.taskDispatcher.dispatch(parsed.data);
-    return c.json({ job_id: jobId });
-  });
+  .post(
+    "/dispatch",
+    zValidator("json", InboundMessageTaskPayload),
+    async (c) => {
+      const body = await c.req.json().catch(() => null);
+      const parsed = InboundMessageTaskPayload.safeParse(body);
+      if (!parsed.success) {
+        return c.json({ error: parsed.error.flatten() }, 400);
+      }
+      const jobId = await kernel.taskDispatcher.dispatch(
+        parsed.data.message.session_id,
+        parsed.data,
+      );
+      return c.json({ job_id: jobId });
+    },
+  );

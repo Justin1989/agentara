@@ -14,10 +14,21 @@ const QUEUE_NAME = "agentara:tasks";
 type SchedulerInfo = Awaited<ReturnType<Queue["getJobSchedulers"]>>[number];
 
 /**
+ * Internal wrapper that pairs a session ID with the task payload
+ * for transport through the bunqueue job queue.
+ */
+interface TaskJobData {
+  session_id: string;
+  payload: TaskPayload;
+}
+
+/**
  * A function that processes a task payload of a specific type.
  * Errors thrown inside are caught by {@link TaskDispatcher}.
  */
 export type TaskHandler<P extends TaskPayload = TaskPayload> = (
+  // eslint-disable-next-line no-unused-vars
+  sessionId: string,
   // eslint-disable-next-line no-unused-vars
   payload: P,
 ) => Promise<void>;
@@ -49,8 +60,8 @@ export interface TaskDispatcherOptions {
 export class TaskDispatcher {
   private _concurrency: number;
   private _db: DrizzleDB;
-  private _queue: Queue<TaskPayload>;
-  private _worker: Worker<TaskPayload> | undefined;
+  private _queue: Queue<TaskJobData>;
+  private _worker: Worker<TaskJobData> | undefined;
   private _handlers: Map<string, TaskHandler>;
   /** Per-session promise chain for serial execution. */
   private _sessionLocks: Map<string, Promise<void>>;
@@ -62,7 +73,7 @@ export class TaskDispatcher {
     this._handlers = new Map();
     this._sessionLocks = new Map();
     this._logger = createLogger("task-dispatcher");
-    this._queue = new Queue<TaskPayload>(QUEUE_NAME, {
+    this._queue = new Queue<TaskJobData>(QUEUE_NAME, {
       embedded: true,
       defaultJobOptions: { attempts: config.tasking.max_retries },
     });
@@ -94,17 +105,19 @@ export class TaskDispatcher {
 
   /**
    * Dispatch a task for processing.
+   * @param sessionId - The session that owns this task.
    * @param payload - The task payload to enqueue.
    * @returns The bunqueue job ID.
    */
-  async dispatch(payload: TaskPayload): Promise<string> {
-    const job = await this._queue.add(payload.type, payload);
+  async dispatch(sessionId: string, payload: TaskPayload): Promise<string> {
+    const jobData: TaskJobData = { session_id: sessionId, payload };
+    const job = await this._queue.add(payload.type, jobData);
     const now = Date.now();
     this._db
       .insert(tasks)
       .values({
         id: job.id,
-        session_id: payload.session_id,
+        session_id: sessionId,
         type: payload.type,
         status: "pending",
         payload,
@@ -117,18 +130,23 @@ export class TaskDispatcher {
 
   /**
    * Register or update a cron job scheduler.
-   * Calling this again with the same {@link CronjobTaskPayload.session_id}
+   * Calling this again with the same {@link sessionId}
    * updates the schedule without creating duplicates.
+   * @param sessionId - The session ID, also used as the bunqueue scheduler ID for deduplication.
    * @param payload - The cronjob task payload.
    */
-  async scheduleCronjob(payload: CronjobTaskPayload): Promise<void> {
+  async scheduleCronjob(
+    sessionId: string,
+    payload: CronjobTaskPayload,
+  ): Promise<void> {
+    const jobData: TaskJobData = { session_id: sessionId, payload };
     await this._queue.upsertJobScheduler(
-      payload.session_id,
+      sessionId,
       { pattern: payload.cron_pattern },
-      { name: "cronjob", data: payload },
+      { name: "cronjob", data: jobData },
     );
     this._logger.info(
-      { session_id: payload.session_id, cron_pattern: payload.cron_pattern },
+      { session_id: sessionId, cron_pattern: payload.cron_pattern },
       "cronjob scheduled",
     );
   }
@@ -170,7 +188,7 @@ export class TaskDispatcher {
    * Start the worker. Must be called once during app startup.
    */
   async start() {
-    this._worker = new Worker<TaskPayload>(
+    this._worker = new Worker<TaskJobData>(
       QUEUE_NAME,
       (job) => this._processJob(job),
       {
@@ -208,9 +226,8 @@ export class TaskDispatcher {
    * Process a job from the queue. Acquires a per-session lock so that
    * tasks for the same session_id execute serially in FIFO order.
    */
-  private async _processJob(job: Job<TaskPayload>): Promise<void> {
-    const payload = job.data;
-    const sessionId = payload.session_id;
+  private async _processJob(job: Job<TaskJobData>): Promise<void> {
+    const { session_id: sessionId, payload } = job.data;
 
     const previous = this._sessionLocks.get(sessionId) ?? Promise.resolve();
 
@@ -225,7 +242,7 @@ export class TaskDispatcher {
       }
       this._updateTaskStatus(job.id, "running");
       try {
-        await handler(payload);
+        await handler(sessionId, payload);
         await job.updateProgress(100);
         this._updateTaskStatus(job.id, "completed");
       } catch (err) {

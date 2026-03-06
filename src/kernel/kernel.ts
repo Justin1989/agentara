@@ -78,9 +78,9 @@ class Kernel {
   }
 
   private _inboundMessageHandler = async (
+    sessionId: string,
     payload: InboundMessageTaskPayload,
   ) => {
-    const sessionId = payload.session_id;
     const session = await this._sessionManager.resolveSession(sessionId);
     const inboundMessage = payload.message;
     this._logger.info(

@@ -5,6 +5,7 @@
     "": {
       "name": "agentara",
       "dependencies": {
+        "@hono/zod-validator": "^0.7.6",
         "bunqueue": "^2.6.0",
         "concurrently": "^9.2.1",
         "dayjs": "^1.11.19",
@@ -112,6 +113,8 @@
     "@eslint/plugin-kit": ["@eslint/plugin-kit@0.6.0", "https://registry.npmmirror.com/@eslint/plugin-kit/-/plugin-kit-0.6.0.tgz", { "dependencies": { "@eslint/core": "^1.1.0", "levn": "^0.4.1" } }, "sha512-bIZEUzOI1jkhviX2cp5vNyXQc6olzb2ohewQubuYlMXZ2Q/XjBO0x0XhGPvc9fjSIiUN0vw+0hq53BJ4eQSJKQ=="],
 
     "@hono/node-server": ["@hono/node-server@1.19.9", "https://registry.npmmirror.com/@hono/node-server/-/node-server-1.19.9.tgz", { "peerDependencies": { "hono": "^4" } }, "sha512-vHL6w3ecZsky+8P5MD+eFfaGTyCeOHUIFYMGpQGbrBTSmNNoxv0if69rEZ5giu36weC5saFuznL411gRX7bJDw=="],
+
+    "@hono/zod-validator": ["@hono/zod-validator@0.7.6", "https://registry.npmmirror.com/@hono/zod-validator/-/zod-validator-0.7.6.tgz", { "peerDependencies": { "hono": ">=3.9.0", "zod": "^3.25.0 || ^4.0.0" } }, "sha512-Io1B6d011Gj1KknV4rXYz4le5+5EubcWEU/speUjuw9XMMIaP3n78yXLhjd2A3PXaXaUwEAluOiAyLqhBEJgsw=="],
 
     "@humanfs/core": ["@humanfs/core@0.19.1", "https://registry.npmmirror.com/@humanfs/core/-/core-0.19.1.tgz", {}, "sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA=="],
 

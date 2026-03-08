@@ -11,10 +11,13 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { firstPartOfUUID } from "@/lib/utils/uuid";
 
 import { Badge } from "./ui/badge";
+
+const LANE_SKELETON_COUNTS = [2, 3, 1] as const;
 
 const lanes = [
   {
@@ -85,6 +88,38 @@ interface TaskKanbanLaneProps {
   onCopyTaskId: (taskId: string) => void;
 }
 
+function TaskKanbanLaneSkeleton({
+  cardCount,
+}: {
+  cardCount: number;
+}) {
+  return (
+    <Card className="flex-1 py-4 bg-sidebar rounded-lg gap-0 pb-0">
+      <CardHeader className="px-4">
+        <div className="flex items-center gap-2">
+          <Skeleton className="size-2 shrink-0 rounded-full" />
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="size-4 shrink-0 rounded" />
+        </div>
+      </CardHeader>
+      <CardContent className="flex-1 min-h-0 px-0">
+        <div className="flex flex-col gap-2 pb-4 px-3">
+          {Array.from({ length: cardCount }).map((_, i) => (
+            <div
+              key={i}
+              className="rounded-lg border bg-sidebar-accent/30 p-4"
+            >
+              <Skeleton className="h-3 w-14" />
+              <Skeleton className="mt-2 h-4 w-full" />
+              <Skeleton className="mt-2 h-3 w-24" />
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function TaskKanbanLane({ lane, tasks, onCopyTaskId }: TaskKanbanLaneProps) {
   const [parent] = useAutoAnimate();
   return (
@@ -120,12 +155,33 @@ function TaskKanbanLane({ lane, tasks, onCopyTaskId }: TaskKanbanLaneProps) {
 export function TaskKanban({
   className,
   tasks,
+  isLoading,
   onCopyTaskId,
 }: {
   className?: string;
   tasks: Task[];
+  isLoading?: boolean;
   onCopyTaskId: (taskId: string) => void;
 }) {
+  if (isLoading) {
+    return (
+      <div
+        className={cn(
+          "h-full flex justify-center items-center",
+          className,
+        )}
+      >
+        <div className="flex w-full h-full gap-4 py-6">
+          {lanes.map((_, i) => (
+            <TaskKanbanLaneSkeleton
+              key={lanes[i].key}
+              cardCount={LANE_SKELETON_COUNTS[i]}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }
   return (
     <div className={cn("h-full flex justify-center items-center", className)}>
       <div className="flex w-full h-full gap-4 py-6">

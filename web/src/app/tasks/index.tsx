@@ -23,8 +23,7 @@ function TasksPage() {
     await navigator.clipboard.writeText(taskId);
     toast.info("Task ID copied to clipboard");
   };
-  if (isLoading) return <div>Loading...</div>;
-  if (!tasks || tasks.length === 0) {
+  if (!isLoading && (!tasks || tasks.length === 0)) {
     return (
       <Empty>
         <EmptyHeader>
@@ -42,7 +41,8 @@ function TasksPage() {
   return (
     <TaskKanban
       className="container-md mx-auto"
-      tasks={tasks}
+      tasks={tasks ?? []}
+      isLoading={isLoading}
       onCopyTaskId={handleCopyTaskId}
     />
   );

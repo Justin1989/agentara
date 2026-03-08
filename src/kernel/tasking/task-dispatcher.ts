@@ -25,8 +25,13 @@ interface TaskJobData {
 /**
  * A function that processes a task payload of a specific type.
  * Errors thrown inside are caught by {@link TaskDispatcher}.
+ * @param taskId - The bunqueue job ID for this task.
+ * @param sessionId - The session that owns this task.
+ * @param payload - The task payload.
  */
 export type TaskHandler<P extends TaskPayload = TaskPayload> = (
+  // eslint-disable-next-line no-unused-vars
+  taskId: string,
   // eslint-disable-next-line no-unused-vars
   sessionId: string,
   // eslint-disable-next-line no-unused-vars
@@ -242,7 +247,8 @@ export class TaskDispatcher {
       }
       this._updateTaskStatus(job.id, "running");
       try {
-        await handler(sessionId, payload);
+        const taskId = job.id;
+        await handler(taskId, sessionId, payload);
         await job.updateProgress(100);
         this._updateTaskStatus(job.id, "completed");
       } catch (err) {

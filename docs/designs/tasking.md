@@ -67,10 +67,18 @@ Discriminated union of `InboundMessageTaskPayload | CronjobTaskPayload`.
 ### TaskHandler
 
 ```ts
-type TaskHandler<P extends TaskPayload> = (payload: P) => Promise<void>;
+type TaskHandler<P extends TaskPayload> = (
+  taskId: string,
+  sessionId: string,
+  payload: P,
+) => Promise<void>;
 ```
 
-Handlers receive the payload for their type. Errors thrown propagate to the worker; Bunqueue handles retries per `config.tasking.max_retries`.
+- `taskId`: The bunqueue job ID for this task.
+- `sessionId`: The session that owns this task.
+- `payload`: The task payload for the handler's type.
+
+Errors thrown propagate to the worker; Bunqueue handles retries per `config.tasking.max_retries`.
 
 ## Per-Session Serial Execution
 

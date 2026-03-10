@@ -8,6 +8,8 @@
 [![Hono](https://img.shields.io/badge/API-Hono-E36002?logo=hono&logoColor=white)](https://hono.dev)
 [![React](https://img.shields.io/badge/Frontend-React_19-61DAFB?logo=react&logoColor=white)](https://react.dev)
 
+![agentara-comic](https://github.com/github-copilot/chat/attachments/2bc612db-7d1e-4daf-9be1-b6048059ca8c)
+
 A 24/7 personal assistant powered by Claude Code as a SuperAgent. Multi-channel messaging, task scheduling, session management, and more — all running locally.
 
 You can call me **Tara** for short.

@@ -1,5 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Message, Session, Skill, Task, TaskSchedule } from "agentara";
+import type {
+  AssistantMessage,
+  Message,
+  Session,
+  Skill,
+  Task,
+  TaskSchedule,
+  ToolMessage,
+  UserMessage,
+} from "agentara";
 
 import { api, apiFetch } from "./client";
 
@@ -23,7 +32,32 @@ export function useSessionHistory(sessionId: string) {
     queryFn: () =>
       api.sessions[":id"].history
         .$get({ param: { id: sessionId } })
-        .then((res) => res.json() as Promise<{ messages: Message[] }>),
+        .then(async (res) => {
+          const { messages } = (await res.json()) as { messages: Message[] };
+          const groupedMessages: Message[][] = [];
+          for (const message of messages) {
+            if (message.role === "user") {
+              groupedMessages.push([message]);
+            } else {
+              groupedMessages[groupedMessages.length - 1].push(message);
+            }
+          }
+          const groups: {
+            inbound: UserMessage;
+            steps: (AssistantMessage | ToolMessage)[];
+            outbound?: AssistantMessage;
+          }[] = [];
+          for (const message of groupedMessages) {
+            groups.push({
+              inbound: message[0] as UserMessage,
+              steps: message.slice(1) as (AssistantMessage | ToolMessage)[],
+              outbound: message[message.length - 1] as
+                | AssistantMessage
+                | undefined,
+            });
+          }
+          return { messages, groups };
+        }),
     enabled: !!sessionId,
   });
 }

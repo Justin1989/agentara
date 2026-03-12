@@ -58,6 +58,7 @@ export default defineConfig([
           },
         },
       ],
+      "no-case-declarations": "off",
     },
   },
 ]);

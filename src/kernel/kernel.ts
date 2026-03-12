@@ -176,7 +176,7 @@ class Kernel {
       content: [
         {
           type: "text",
-          text: `> This message is automatically triggered by a scheduled task
+          text: `> This message is automatically triggered by a scheduled task.
 > The time is now ${new Date().toString()}.
 > Cron expression: \`${JSON.stringify(payload_without_instruction)}\`
 

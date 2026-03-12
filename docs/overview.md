@@ -147,9 +147,9 @@ TaskDispatcher manages task queuing, routing, and execution via Bunqueue (embedd
 - **Per-session serial**: Same `session_id` runs serially (FIFO)
 - **Concurrency**: Cross-session slots (default 4)
 - **Handlers**: `route(type, handler)` before `start()` — e.g. `inbound_message` → session.run()
-- **Cron**: `scheduleCronjob()`, `removeCronjob(sessionId)` — session_id as scheduler ID
+- **Scheduling**: `scheduleTask()`, `removeScheduledTask(sessionId)` — session_id as scheduler ID; persisted to SQLite and reloaded on `start()`
 
-**Payloads** (`src/shared/tasking/types/payload.ts`): `inbound_message` (session_id, message) | `cronjob` (session_id, instruction, cron_pattern). Config: `config.tasking.max_retries`.
+**Payloads** (`src/shared/tasking/types/payload.ts`): `inbound_message` (session_id, message) | `scheduled_task` (instruction). **TaskSchedule** (separate): `pattern?`, `every?`, `limit?`, `immediately?`. Config: `config.tasking.max_retries`.
 
 ---
 
@@ -174,7 +174,7 @@ src/
 ├── shared/      # Cross-layer types, utilities, conventions
 │   ├── agents/       # AgentRunner interface, AgentRunOptions, etc.
 │   ├── messaging/    # Message types, tool types, role definitions
-│   ├── tasking/      # TaskPayload types (inbound_message, cronjob)
+│   ├── tasking/      # TaskPayload types (inbound_message, scheduled_task)
 │   ├── utils/        # Pure utilities (e.g. UUID)
 │   └── logging/      # Pino
 ├── kernel/      # Core orchestration (Kernel, SessionManager, TaskDispatcher)

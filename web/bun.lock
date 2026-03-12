@@ -11,6 +11,7 @@
         "boring-avatars": "^2.0.4",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
+        "cronstrue": "^3.13.0",
         "dayjs": "^1.11.19",
         "hono": "^4.12.5",
         "lucide-react": "^0.577.0",
@@ -670,6 +671,8 @@
     "cors": ["cors@2.8.6", "https://registry.npmmirror.com/cors/-/cors-2.8.6.tgz", { "dependencies": { "object-assign": "^4", "vary": "^1" } }, "sha512-tJtZBBHA6vjIAaF6EnIaq6laBBP9aq/Y3ouVJjEfoHbRBcHBAHYcMh/w8LDrk2PvIMMq8gmopa5D4V8RmbrxGw=="],
 
     "cosmiconfig": ["cosmiconfig@9.0.1", "https://registry.npmmirror.com/cosmiconfig/-/cosmiconfig-9.0.1.tgz", { "dependencies": { "env-paths": "^2.2.1", "import-fresh": "^3.3.0", "js-yaml": "^4.1.0", "parse-json": "^5.2.0" }, "peerDependencies": { "typescript": ">=4.9.5" }, "optionalPeers": ["typescript"] }, "sha512-hr4ihw+DBqcvrsEDioRO31Z17x71pUYoNe/4h6Z0wB72p7MU7/9gH8Q3s12NFhHPfYBBOV3qyfUxmr/Yn3shnQ=="],
+
+    "cronstrue": ["cronstrue@3.13.0", "https://registry.npmmirror.com/cronstrue/-/cronstrue-3.13.0.tgz", { "bin": { "cronstrue": "bin/cli.js" } }, "sha512-M06cKwRIN46AyuM8BOmF1HUkBTkd3/h7uYImnrH1T3wtRKBGOibVo3jZ42VheEvx8LtgZbG/4GI35vfIxYxMug=="],
 
     "cross-spawn": ["cross-spawn@7.0.6", "https://registry.npmmirror.com/cross-spawn/-/cross-spawn-7.0.6.tgz", { "dependencies": { "path-key": "^3.1.0", "shebang-command": "^2.0.0", "which": "^2.0.1" } }, "sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA=="],
 

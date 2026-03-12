@@ -1,10 +1,11 @@
 import { describe, expect, test } from "bun:test";
 
 import {
-  CronjobTaskPayload,
   InboundMessageTaskPayload,
+  ScheduledTaskPayload,
   Task,
   TaskPayload,
+  TaskSchedule,
   TaskStatus,
 } from "@/shared";
 
@@ -43,22 +44,87 @@ describe("InboundMessageTaskPayload", () => {
   });
 });
 
-describe("CronjobTaskPayload", () => {
+describe("ScheduledTaskPayload", () => {
   test("parses valid payload", () => {
     const input = {
-      type: "cronjob",
+      type: "scheduled_task",
       instruction: "summarize news",
-      cron_pattern: "0 9 * * *",
     };
-    const result = CronjobTaskPayload.parse(input);
-    expect(result.type).toBe("cronjob");
-    expect(result.cron_pattern).toBe("0 9 * * *");
+    const result = ScheduledTaskPayload.parse(input);
+    expect(result.type).toBe("scheduled_task");
+    expect(result.instruction).toBe("summarize news");
   });
 
   test("rejects missing instruction", () => {
     expect(() =>
-      CronjobTaskPayload.parse({ type: "cronjob", cron_pattern: "* * * * *" }),
+      ScheduledTaskPayload.parse({ type: "scheduled_task" }),
     ).toThrow();
+  });
+});
+
+describe("TaskSchedule", () => {
+  test("parses schedule with pattern", () => {
+    const result = TaskSchedule.parse({ pattern: "0 9 * * *" });
+    expect(result.pattern).toBe("0 9 * * *");
+  });
+
+  test("parses schedule with every", () => {
+    const result = TaskSchedule.parse({ every: 60000 });
+    expect(result.every).toBe(60000);
+  });
+
+  test("parses schedule with all fields", () => {
+    const result = TaskSchedule.parse({
+      pattern: "0 9 * * *",
+      every: 60000,
+      limit: 10,
+      immediately: true,
+    });
+    expect(result.pattern).toBe("0 9 * * *");
+    expect(result.every).toBe(60000);
+    expect(result.limit).toBe(10);
+    expect(result.immediately).toBe(true);
+  });
+
+  test("parses schedule with at (one-shot)", () => {
+    const future = Date.now() + 60000;
+    const result = TaskSchedule.parse({ at: future });
+    expect(result.at).toBe(future);
+  });
+
+  test("parses schedule with delay (one-shot)", () => {
+    const result = TaskSchedule.parse({ delay: 60000 });
+    expect(result.delay).toBe(60000);
+  });
+
+  test("rejects schedule with both at and delay", () => {
+    const future = Date.now() + 60000;
+    expect(() =>
+      TaskSchedule.parse({ at: future, delay: 30000 }),
+    ).toThrow();
+  });
+
+  test("rejects schedule with both delay and pattern", () => {
+    expect(() =>
+      TaskSchedule.parse({ delay: 60000, pattern: "0 9 * * *" }),
+    ).toThrow();
+  });
+
+  test("rejects schedule with both at and pattern", () => {
+    const future = Date.now() + 60000;
+    expect(() =>
+      TaskSchedule.parse({ at: future, pattern: "0 9 * * *" }),
+    ).toThrow();
+  });
+
+  test("rejects schedule with both at and every", () => {
+    const future = Date.now() + 60000;
+    expect(() => TaskSchedule.parse({ at: future, every: 60000 })).toThrow();
+  });
+
+  test("rejects schedule without pattern, every, or at", () => {
+    expect(() => TaskSchedule.parse({ limit: 5 })).toThrow();
+    expect(() => TaskSchedule.parse({})).toThrow();
   });
 });
 
@@ -69,14 +135,13 @@ describe("TaskPayload (discriminated union)", () => {
     expect(result.type).toBe("inbound_message");
   });
 
-  test("parses cronjob variant", () => {
+  test("parses scheduled_task variant", () => {
     const input = {
-      type: "cronjob",
+      type: "scheduled_task",
       instruction: "run",
-      cron_pattern: "0 * * * *",
     };
     const result = TaskPayload.parse(input);
-    expect(result.type).toBe("cronjob");
+    expect(result.type).toBe("scheduled_task");
   });
 
   test("rejects unknown type", () => {

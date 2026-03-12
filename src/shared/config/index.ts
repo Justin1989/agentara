@@ -8,5 +8,8 @@ export const config = {
     /** Maximum number of attempts per job before it is marked as failed. Defaults to 1 (no retries). */
     max_retries: 1,
   },
+  messaging: {
+    default_channel_type: "feishu",
+  },
   paths,
 };

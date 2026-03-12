@@ -3,23 +3,28 @@ import { Queue, Worker } from "bunqueue/client";
 import { desc, eq } from "drizzle-orm";
 
 import type { DrizzleDB } from "@/data";
-import type { CronjobTaskPayload, Task, TaskPayload, Logger } from "@/shared";
-import { config, createLogger } from "@/shared";
+import type {
+  ScheduledTaskPayload,
+  Task,
+  TaskPayload,
+  TaskSchedule,
+  Logger,
+} from "@/shared";
+import { config, createLogger, uuid } from "@/shared";
 
-import { tasks } from "./data";
+import { scheduledTasks, tasks } from "./data";
 
 const QUEUE_NAME = "agentara:tasks";
-
-/** Scheduler info type extracted from the bunqueue Queue API. */
-type SchedulerInfo = Awaited<ReturnType<Queue["getJobSchedulers"]>>[number];
 
 /**
  * Internal wrapper that pairs a session ID with the task payload
  * for transport through the bunqueue job queue.
  */
 interface TaskJobData {
-  session_id: string;
+  session_id: string | null;
   payload: TaskPayload;
+  /** Scheduler ID for scheduled tasks; used to clean up one-shot rows after execution. */
+  scheduler_id?: string;
 }
 
 /**
@@ -55,10 +60,22 @@ export interface TaskDispatcherOptions {
 }
 
 /**
+ * A persisted scheduled task row from the `scheduled_tasks` table.
+ */
+interface ScheduledTaskRow {
+  id: string;
+  session_id: string | null;
+  instruction: string;
+  schedule: TaskSchedule;
+  created_at: number;
+  updated_at: number;
+}
+
+/**
  * Manages task queuing, routing, and execution via bunqueue.
  *
  * Provides handler registration via {@link route}, per-session serial
- * execution (FIFO), and cron job scheduling. The dispatcher itself does
+ * execution (FIFO), and scheduled task management. The dispatcher itself does
  * not know about sessions or agents — execution logic is injected via
  * {@link route}.
  */
@@ -134,35 +151,256 @@ export class TaskDispatcher {
   }
 
   /**
-   * Register or update a cron job scheduler.
-   * Calling this again with the same {@link sessionId}
-   * updates the schedule without creating duplicates.
-   * @param sessionId - The session ID, also used as the bunqueue scheduler ID for deduplication.
-   * @param payload - The cronjob task payload.
+   * Register or update a scheduled task.
+   * Persists the definition to the `scheduled_tasks` table and registers
+   * a bunqueue job scheduler. Calling this again with the same
+   * {@link sessionId} updates both the DB row and the scheduler.
+   * @param sessionId - The session ID. When `null`, each trigger creates a fresh session (independent mode).
+   * @param payload - The scheduled task payload describing what to do.
+   * @param schedule - The schedule configuration describing when to do it.
+   * @returns The scheduler ID for this scheduled task.
    */
-  async scheduleCronjob(
-    sessionId: string,
-    payload: CronjobTaskPayload,
-  ): Promise<void> {
-    const jobData: TaskJobData = { session_id: sessionId, payload };
+  async scheduleTask(
+    sessionId: string | null,
+    payload: ScheduledTaskPayload,
+    schedule: TaskSchedule,
+  ): Promise<string> {
+    const schedulerId = sessionId ?? uuid();
+    const jobData: TaskJobData = {
+      session_id: sessionId,
+      payload,
+      scheduler_id: schedulerId,
+    };
+    const now = Date.now();
+
+    const at = schedule.at ?? (schedule.delay !== undefined ? now + schedule.delay : undefined);
+    if (at !== undefined) {
+      if (at <= now) {
+        throw new Error(
+          `Schedule 'at' must be in the future (got ${at}, now ${now})`,
+        );
+      }
+      const delayMs = at - now;
+      const job = await this._queue.add("scheduled_task", jobData, {
+        delay: delayMs,
+        jobId: schedulerId,
+      });
+      const scheduleWithJobId = { at, _job_id: job.id };
+      this._db
+        .insert(scheduledTasks)
+        .values({
+          id: schedulerId,
+          session_id: sessionId,
+          instruction: payload.instruction,
+          schedule: scheduleWithJobId,
+          created_at: now,
+          updated_at: now,
+        })
+        .onConflictDoUpdate({
+          target: scheduledTasks.id,
+          set: {
+            instruction: payload.instruction,
+            schedule: scheduleWithJobId,
+            updated_at: now,
+          },
+        })
+        .run();
+      this._db
+        .insert(tasks)
+        .values({
+          id: job.id,
+          session_id: sessionId ?? schedulerId,
+          type: "scheduled_task",
+          status: "pending",
+          payload,
+          created_at: now,
+          updated_at: now,
+        })
+        .run();
+      this._logger.info(
+        { scheduler_id: schedulerId, session_id: sessionId, at },
+        "one-shot scheduled task registered",
+      );
+      return schedulerId;
+    }
+
+    this._db
+      .insert(scheduledTasks)
+      .values({
+        id: schedulerId,
+        session_id: sessionId,
+        instruction: payload.instruction,
+        schedule,
+        created_at: now,
+        updated_at: now,
+      })
+      .onConflictDoUpdate({
+        target: scheduledTasks.id,
+        set: {
+          instruction: payload.instruction,
+          schedule,
+          updated_at: now,
+        },
+      })
+      .run();
+
     await this._queue.upsertJobScheduler(
-      sessionId,
-      { pattern: payload.cron_pattern },
-      { name: "cronjob", data: jobData },
+      schedulerId,
+      {
+        pattern: schedule.pattern,
+        every: schedule.every,
+        limit: schedule.limit,
+        immediately: schedule.immediately,
+      },
+      { name: "scheduled_task", data: jobData },
     );
     this._logger.info(
-      { session_id: sessionId, cron_pattern: payload.cron_pattern },
-      "cronjob scheduled",
+      { scheduler_id: schedulerId, session_id: sessionId, schedule },
+      "scheduled task registered",
+    );
+    return schedulerId;
+  }
+
+  /**
+   * Update an existing scheduled task by its scheduler ID.
+   * Updates the DB row and re-registers the bunqueue scheduler.
+   * @param schedulerId - The scheduler ID (primary key) to update.
+   * @param payload - The new scheduled task payload.
+   * @param schedule - The new schedule configuration.
+   * @param sessionId - Optional. When provided, updates the session ID.
+   * @throws Error if no scheduled task exists with the given ID.
+   */
+  async updateScheduledTask(
+    schedulerId: string,
+    payload: ScheduledTaskPayload,
+    schedule: TaskSchedule,
+    sessionId?: string | null,
+  ): Promise<void> {
+    const row = this._db
+      .select()
+      .from(scheduledTasks)
+      .where(eq(scheduledTasks.id, schedulerId))
+      .get() as ScheduledTaskRow | undefined;
+    if (!row) {
+      throw new Error(`Scheduled task not found: ${schedulerId}`);
+    }
+    const newSessionId = sessionId !== undefined ? sessionId : row.session_id;
+    const now = Date.now();
+    const wasOneShot = row.schedule.at !== undefined;
+    const sched = row.schedule;
+
+    if (sched._job_id) {
+      try {
+        await this._queue.removeAsync(sched._job_id);
+      } catch {
+        // Job may have run or been removed
+      }
+    }
+
+    if (!wasOneShot) {
+      await this._queue.removeJobScheduler(schedulerId);
+    }
+
+    const at = schedule.at ?? (schedule.delay !== undefined ? now + schedule.delay : undefined);
+    if (at !== undefined) {
+      if (at <= now) {
+        throw new Error(
+          `Schedule 'at' must be in the future (got ${at}, now ${now})`,
+        );
+      }
+      const delayMs = at - now;
+      const jobData: TaskJobData = {
+        session_id: newSessionId,
+        payload,
+        scheduler_id: schedulerId,
+      };
+      const job = await this._queue.add("scheduled_task", jobData, {
+        delay: delayMs,
+        jobId: schedulerId,
+      });
+      const scheduleWithJobId = { at, _job_id: job.id };
+      this._db
+        .update(scheduledTasks)
+        .set({
+          session_id: newSessionId,
+          instruction: payload.instruction,
+          schedule: scheduleWithJobId,
+          updated_at: now,
+        })
+        .where(eq(scheduledTasks.id, schedulerId))
+        .run();
+      this._db
+        .insert(tasks)
+        .values({
+          id: job.id,
+          session_id: newSessionId ?? schedulerId,
+          type: "scheduled_task",
+          status: "pending",
+          payload,
+          created_at: now,
+          updated_at: now,
+        })
+        .run();
+    } else {
+      this._db
+        .update(scheduledTasks)
+        .set({
+          session_id: newSessionId,
+          instruction: payload.instruction,
+          schedule,
+          updated_at: now,
+        })
+        .where(eq(scheduledTasks.id, schedulerId))
+        .run();
+      const jobData: TaskJobData = {
+        session_id: newSessionId,
+        payload,
+        scheduler_id: schedulerId,
+      };
+      await this._queue.upsertJobScheduler(
+        schedulerId,
+        {
+          pattern: schedule.pattern,
+          every: schedule.every,
+          limit: schedule.limit,
+          immediately: schedule.immediately,
+        },
+        { name: "scheduled_task", data: jobData },
+      );
+    }
+    this._logger.info(
+      { scheduler_id: schedulerId, schedule },
+      "scheduled task updated",
     );
   }
 
   /**
-   * Remove a cron job scheduler by its session_id.
-   * @param sessionId - The session_id (scheduler ID) to remove.
+   * Remove a scheduled task by its scheduler ID.
+   * Deletes from the `scheduled_tasks` table and removes the bunqueue scheduler.
+   * @param schedulerId - The scheduler ID (primary key) to remove.
    */
-  async removeCronjob(sessionId: string): Promise<void> {
-    await this._queue.removeJobScheduler(sessionId);
-    this._logger.info({ session_id: sessionId }, "cronjob removed");
+  async removeScheduledTask(schedulerId: string): Promise<void> {
+    const row = this._db
+      .select()
+      .from(scheduledTasks)
+      .where(eq(scheduledTasks.id, schedulerId))
+      .get() as ScheduledTaskRow | undefined;
+    const sched = row?.schedule;
+    if (sched?._job_id) {
+      try {
+        await this._queue.removeAsync(sched._job_id);
+      } catch {
+        // Job may have run or been removed
+      }
+    }
+    if (row && sched?.at === undefined) {
+      await this._queue.removeJobScheduler(schedulerId);
+    }
+    this._db
+      .delete(scheduledTasks)
+      .where(eq(scheduledTasks.id, schedulerId))
+      .run();
+    this._logger.info({ scheduler_id: schedulerId }, "scheduled task removed");
   }
 
   /**
@@ -182,17 +420,20 @@ export class TaskDispatcher {
   }
 
   /**
-   * Get all registered cronjob schedulers.
-   * @returns An array of scheduler info for every active cronjob.
+   * Get all persisted scheduled tasks from the database.
+   * @returns An array of scheduled task rows.
    */
-  async getCronjobs(): Promise<SchedulerInfo[]> {
-    return this._queue.getJobSchedulers();
+  getScheduledTasks(): ScheduledTaskRow[] {
+    return this._db.select().from(scheduledTasks).all() as ScheduledTaskRow[];
   }
 
   /**
    * Start the worker. Must be called once during app startup.
+   * Re-registers all persisted scheduled tasks with bunqueue.
    */
   async start() {
+    await this._reloadScheduledTasks();
+
     this._worker = new Worker<TaskJobData>(
       QUEUE_NAME,
       (job) => this._processJob(job),
@@ -228,11 +469,69 @@ export class TaskDispatcher {
   }
 
   /**
+   * Reload all scheduled tasks from the database and re-register them
+   * with bunqueue's job scheduler.
+   */
+  private async _reloadScheduledTasks(): Promise<void> {
+    const rows = this.getScheduledTasks();
+    const now = Date.now();
+    for (const row of rows) {
+      const r = row as ScheduledTaskRow;
+      const sched = r.schedule;
+      const payload: ScheduledTaskPayload = {
+        type: "scheduled_task",
+        instruction: r.instruction,
+      };
+      const jobData: TaskJobData = {
+        session_id: r.session_id,
+        payload,
+        scheduler_id: r.id,
+      };
+
+      if (sched.at !== undefined && sched.at > now) {
+        const existing = await this._queue.getJob(sched._job_id ?? "");
+        if (!existing) {
+          const delay = sched.at - now;
+          const job = await this._queue.add("scheduled_task", jobData, {
+            delay,
+            jobId: r.id,
+          });
+          const scheduleWithJobId = { ...sched, _job_id: job.id };
+          this._db
+            .update(scheduledTasks)
+            .set({ schedule: scheduleWithJobId, updated_at: now })
+            .where(eq(scheduledTasks.id, r.id))
+            .run();
+        }
+      } else if (sched.at === undefined) {
+        await this._queue.upsertJobScheduler(
+          r.id,
+          {
+            pattern: sched.pattern,
+            every: sched.every,
+            limit: sched.limit,
+            immediately: sched.immediately,
+          },
+          { name: "scheduled_task", data: jobData },
+        );
+      }
+      // One-shot with at <= now: job ran or expired, leave row for display/cleanup
+    }
+    if (rows.length > 0) {
+      this._logger.info(
+        { count: rows.length },
+        "reloaded scheduled tasks from database",
+      );
+    }
+  }
+
+  /**
    * Process a job from the queue. Acquires a per-session lock so that
    * tasks for the same session_id execute serially in FIFO order.
    */
   private async _processJob(job: Job<TaskJobData>): Promise<void> {
-    const { session_id: sessionId, payload } = job.data;
+    const { payload } = job.data;
+    const sessionId = job.data.session_id ?? uuid();
 
     const previous = this._sessionLocks.get(sessionId) ?? Promise.resolve();
 
@@ -251,6 +550,15 @@ export class TaskDispatcher {
         await handler(taskId, sessionId, payload);
         await job.updateProgress(100);
         this._updateTaskStatus(job.id, "completed");
+        const schedulerId = job.data.scheduler_id;
+        if (schedulerId) {
+          const scheduled = this.getScheduledTasks().find(
+            (r) => r.id === schedulerId,
+          );
+          if (scheduled?.schedule.at !== undefined) {
+            await this.removeScheduledTask(schedulerId);
+          }
+        }
       } catch (err) {
         this._updateTaskStatus(job.id, "failed");
         this._logger.error(

@@ -19,7 +19,7 @@ export const Task = z.object({
   id: z.string(),
   /** The session that owns this task. */
   session_id: z.string(),
-  /** The task payload type, e.g. `"inbound_message"` or `"cronjob"`. */
+  /** The task payload type, e.g. `"inbound_message"` or `"scheduled_task"`. */
   type: z.string(),
   /** Current lifecycle status. */
   status: TaskStatus,

@@ -1,5 +1,8 @@
 export { apiFetch } from "./client";
 export {
+  useScheduledTaskRemove,
+  useScheduledTasks,
+  useScheduledTaskUpdate,
   useSessionHistory,
   useSessions,
   useSkills,
@@ -10,3 +13,5 @@ export {
   useUserMemory,
   useUserMemoryUpdate,
 } from "./hooks";
+
+export type { ScheduledTask, ScheduledTaskUpdatePayload } from "./hooks";

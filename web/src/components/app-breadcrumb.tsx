@@ -24,6 +24,7 @@ function buildBreadcrumbs(pathname: string): BreadcrumbItemConfig[] {
   const items: BreadcrumbItemConfig[] = [home];
 
   const pathLabels: Record<string, string> = {
+    cronjobs: "Cronjobs",
     memory: "Memory",
     sessions: "Sessions",
     skills: "Skills",
@@ -35,7 +36,7 @@ function buildBreadcrumbs(pathname: string): BreadcrumbItemConfig[] {
     href += `/${segments[i]}`;
     const segment = segments[i];
     const isLast = i === segments.length - 1;
-    const label = i === 0 ? (pathLabels[segment] ?? segment) : segment;
+    const label = pathLabels[segment] ?? segment;
     items.push({ label, href, isLast });
   }
   return items;

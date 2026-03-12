@@ -12,10 +12,6 @@ export const taskRoutes = new Hono()
     const tasks = kernel.taskDispatcher.queryTasks();
     return c.json(tasks);
   })
-  .get("/cronjobs", async (c) => {
-    const cronjobs = await kernel.taskDispatcher.getCronjobs();
-    return c.json(cronjobs);
-  })
   .post(
     "/dispatch",
     zValidator("json", InboundMessageTaskPayload),

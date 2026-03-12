@@ -2,7 +2,13 @@ import { FeishuMessageChannel } from "@/community/feishu";
 import * as feishuMessagingSchema from "@/community/feishu/messaging/data";
 import { DataConnection } from "@/data";
 import type { AssistantMessage, UserMessage } from "@/shared";
-import { createLogger, type InboundMessageTaskPayload } from "@/shared";
+import {
+  config,
+  createLogger,
+  uuid,
+  type InboundMessageTaskPayload,
+  type ScheduledTaskPayload,
+} from "@/shared";
 
 import { HonoServer } from "../server";
 
@@ -72,6 +78,7 @@ class Kernel {
       "inbound_message",
       this._handleInboundMessageTask,
     );
+    this._taskDispatcher.route("scheduled_task", this._handleScheduledTask);
   }
 
   private _initMessageGateway(): void {
@@ -107,8 +114,8 @@ class Kernel {
   ) => {
     const inboundMessage = payload.message;
     const session = await this._sessionManager.resolveSession(sessionId, {
-      firstMessage: inboundMessage,
       channelType: inboundMessage.channel_type,
+      firstMessage: inboundMessage,
     });
     let contents: AssistantMessage["content"] = [
       {
@@ -151,6 +158,39 @@ class Kernel {
         streaming: false,
       },
     );
+  };
+
+  private _handleScheduledTask = async (
+    _taskId: string,
+    sessionId: string,
+    payload: ScheduledTaskPayload,
+  ) => {
+    const payload_without_instruction: { instruction?: string } = {
+      ...payload,
+    };
+    const userMessage: UserMessage = {
+      id: uuid(),
+      role: "user",
+      session_id: sessionId,
+      channel_type: config.messaging.default_channel_type,
+      content: [
+        {
+          type: "text",
+          text: `> This message is automatically triggered by a scheduled task
+> The time is now ${new Date().toString()}.
+> Cron expression: \`${JSON.stringify(payload_without_instruction)}\`
+
+${payload.instruction}`,
+        },
+      ],
+    };
+    const session = await this._sessionManager.resolveSession(sessionId, {
+      channelType: userMessage.channel_type,
+      firstMessage: userMessage,
+    });
+    delete payload_without_instruction.instruction;
+    const assistantMessage = await session.run(userMessage);
+    await this._messageGateway.postMessage(assistantMessage);
   };
 }
 

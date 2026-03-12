@@ -9,7 +9,14 @@ import { cors } from "hono/cors";
 import type { Logger } from "@/shared";
 import { createLogger } from "@/shared";
 
-import { healthRoutes, memoryRoutes, sessionRoutes, skillsRoutes, taskRoutes } from "./routes";
+import {
+  cronjobsRoutes,
+  healthRoutes,
+  memoryRoutes,
+  sessionRoutes,
+  skillsRoutes,
+  taskRoutes,
+} from "./routes";
 
 /**
  * Creates the Hono app with all API routes mounted.
@@ -25,6 +32,7 @@ function createApp() {
       .use("/api/*", cors({ origin: "*" }))
       // Routes
       .route("/api", healthRoutes)
+      .route("/api/cronjobs", cronjobsRoutes)
       .route("/api/memory", memoryRoutes)
       .route("/api/sessions", sessionRoutes)
       .route("/api/skills", skillsRoutes)

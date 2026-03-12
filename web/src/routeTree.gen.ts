@@ -14,6 +14,7 @@ import { Route as TasksIndexRouteImport } from './app/tasks/index'
 import { Route as SkillsIndexRouteImport } from './app/skills/index'
 import { Route as SessionsIndexRouteImport } from './app/sessions/index'
 import { Route as MemoryIndexRouteImport } from './app/memory/index'
+import { Route as CronjobsIndexRouteImport } from './app/cronjobs/index'
 import { Route as SessionsSessionIdRouteImport } from './app/sessions/$sessionId'
 
 const IndexRoute = IndexRouteImport.update({
@@ -41,6 +42,11 @@ const MemoryIndexRoute = MemoryIndexRouteImport.update({
   path: '/memory/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CronjobsIndexRoute = CronjobsIndexRouteImport.update({
+  id: '/cronjobs/',
+  path: '/cronjobs/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SessionsSessionIdRoute = SessionsSessionIdRouteImport.update({
   id: '/sessions/$sessionId',
   path: '/sessions/$sessionId',
@@ -50,6 +56,7 @@ const SessionsSessionIdRoute = SessionsSessionIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/sessions/$sessionId': typeof SessionsSessionIdRoute
+  '/cronjobs/': typeof CronjobsIndexRoute
   '/memory/': typeof MemoryIndexRoute
   '/sessions/': typeof SessionsIndexRoute
   '/skills/': typeof SkillsIndexRoute
@@ -58,6 +65,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/sessions/$sessionId': typeof SessionsSessionIdRoute
+  '/cronjobs': typeof CronjobsIndexRoute
   '/memory': typeof MemoryIndexRoute
   '/sessions': typeof SessionsIndexRoute
   '/skills': typeof SkillsIndexRoute
@@ -67,6 +75,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/sessions/$sessionId': typeof SessionsSessionIdRoute
+  '/cronjobs/': typeof CronjobsIndexRoute
   '/memory/': typeof MemoryIndexRoute
   '/sessions/': typeof SessionsIndexRoute
   '/skills/': typeof SkillsIndexRoute
@@ -77,6 +86,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/sessions/$sessionId'
+    | '/cronjobs/'
     | '/memory/'
     | '/sessions/'
     | '/skills/'
@@ -85,6 +95,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/sessions/$sessionId'
+    | '/cronjobs'
     | '/memory'
     | '/sessions'
     | '/skills'
@@ -93,6 +104,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/sessions/$sessionId'
+    | '/cronjobs/'
     | '/memory/'
     | '/sessions/'
     | '/skills/'
@@ -102,6 +114,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SessionsSessionIdRoute: typeof SessionsSessionIdRoute
+  CronjobsIndexRoute: typeof CronjobsIndexRoute
   MemoryIndexRoute: typeof MemoryIndexRoute
   SessionsIndexRoute: typeof SessionsIndexRoute
   SkillsIndexRoute: typeof SkillsIndexRoute
@@ -145,6 +158,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MemoryIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cronjobs/': {
+      id: '/cronjobs/'
+      path: '/cronjobs'
+      fullPath: '/cronjobs/'
+      preLoaderRoute: typeof CronjobsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sessions/$sessionId': {
       id: '/sessions/$sessionId'
       path: '/sessions/$sessionId'
@@ -158,6 +178,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SessionsSessionIdRoute: SessionsSessionIdRoute,
+  CronjobsIndexRoute: CronjobsIndexRoute,
   MemoryIndexRoute: MemoryIndexRoute,
   SessionsIndexRoute: SessionsIndexRoute,
   SkillsIndexRoute: SkillsIndexRoute,

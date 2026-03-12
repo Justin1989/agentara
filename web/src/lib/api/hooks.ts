@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Message, Session, Skill, Task } from "agentara";
+import type { Message, Session, Skill, Task, TaskSchedule } from "agentara";
 
-import { api } from "./client";
+import { api, apiFetch } from "./client";
 
 /**
  * Fetches all sessions.
@@ -47,6 +47,69 @@ export function useTasks(options?: { refreshInterval?: number }) {
  * Dispatches a new inbound message task.
  */
 export function useTaskDispatch() {}
+
+/** A scheduled task row from the API. */
+export interface ScheduledTask {
+  id: string;
+  session_id: string | null;
+  instruction: string;
+  schedule: TaskSchedule;
+  created_at: number;
+  updated_at: number;
+}
+
+/**
+ * Fetches all scheduled tasks.
+ */
+export function useScheduledTasks() {
+  return useQuery({
+    queryKey: ["scheduled-tasks"],
+    queryFn: () => apiFetch<ScheduledTask[]>("/cronjobs"),
+  });
+}
+
+/**
+ * Removes a scheduled task by scheduler ID.
+ */
+export function useScheduledTaskRemove() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (schedulerId: string) =>
+      apiFetch(`/cronjobs/${schedulerId}`, {
+        method: "DELETE",
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["scheduled-tasks"] });
+    },
+  });
+}
+
+/** Payload for updating a scheduled task. */
+export interface ScheduledTaskUpdatePayload {
+  instruction: string;
+  schedule: TaskSchedule;
+  session_id?: string | null;
+}
+
+/**
+ * Updates a scheduled task by scheduler ID.
+ */
+export function useScheduledTaskUpdate() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      schedulerId,
+      ...body
+    }: ScheduledTaskUpdatePayload & { schedulerId: string }) =>
+      apiFetch(`/cronjobs/${schedulerId}`, {
+        method: "PUT",
+        body: JSON.stringify(body),
+      }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["scheduled-tasks"] });
+    },
+  });
+}
 
 // --- Skills ---
 

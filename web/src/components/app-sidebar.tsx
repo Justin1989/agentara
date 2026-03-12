@@ -3,6 +3,7 @@ import type { Session } from "agentara";
 import Avatar from "boring-avatars";
 import {
   BrainCircuitIcon,
+  CalendarClockIcon,
   ListTodoIcon,
   MessagesSquareIcon,
   SparklesIcon,
@@ -30,6 +31,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { title: "Sessions", icon: MessagesSquareIcon, to: "/sessions" },
   { title: "Tasks", icon: ListTodoIcon, to: "/tasks" },
+  { title: "Cronjobs", icon: CalendarClockIcon, to: "/cronjobs" },
   { title: "Skills", icon: SparklesIcon, to: "/skills" },
   { title: "Memory", icon: BrainCircuitIcon, to: "/memory" },
 ] as const;
@@ -104,7 +106,15 @@ function RecentsSidebarGroup({
                     to="/sessions/$sessionId"
                     params={{ sessionId: session.id }}
                   >
-                    <span className="truncate">{session.first_message}</span>
+                    <span className="truncate">
+                      {session.first_message ? (
+                        session.first_message
+                      ) : (
+                        <span className="text-muted-foreground/75">
+                          (Empty)
+                        </span>
+                      )}
+                    </span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

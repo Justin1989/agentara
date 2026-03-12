@@ -102,12 +102,55 @@ export class FeishuMessageChannel
     return assistantMessage;
   }
 
-  /** Not supported for Feishu; use replyMessage instead. */
-  postMessage(
-    // eslint-disable-next-line no-unused-vars
+  async postMessage(
     message: Omit<AssistantMessage, "id">,
   ): Promise<AssistantMessage> {
-    throw new Error("Not implemented");
+    const card = renderMessageCard(message.content, {
+      streaming: false,
+    });
+    const { data } = await this._client.im.message.create({
+      params: {
+        receive_id_type: "chat_id",
+      },
+      data: {
+        receive_id: "oc_872915c891a9e9c447b3b3f06b8d65f4",
+        msg_type: "interactive",
+        content: JSON.stringify(card),
+      },
+    });
+    if (!data) {
+      throw new Error("Failed to post message");
+    }
+    const { message_id: messageId } = data;
+    const assistantMessage = message as AssistantMessage;
+    assistantMessage.id = messageId!;
+    const emojis = [
+      "思考中",
+      "送你小红花",
+      "送心",
+      "灵光一现",
+      "辛勤营业",
+      "挥手",
+    ];
+    const { data: replyData } = await this._client.im.message.reply({
+      path: {
+        message_id: assistantMessage.id,
+      },
+      data: {
+        content: JSON.stringify({
+          type: "text",
+          text: `[${emojis[Math.floor(Math.random() * emojis.length)]}] Reply here to continue the conversation`,
+        }),
+        msg_type: "text",
+        reply_in_thread: true,
+      },
+    });
+    if (replyData) {
+      const { thread_id: threadId } = replyData;
+      const sessionId = message.session_id;
+      this._mapThreadToSession(threadId!, sessionId);
+    }
+    return assistantMessage;
   }
 
   /** Update the content of an existing Feishu message. */

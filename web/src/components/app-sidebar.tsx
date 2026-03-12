@@ -95,7 +95,7 @@ function RecentsSidebarGroup({
       <SidebarGroupContent>
         <ScrollArea className="max-h-64">
           <SidebarMenu>
-            {sessions!.slice(0, 10).map((session) => (
+            {sessions!.slice(0, 50).map((session) => (
               <SidebarMenuItem key={session.id} className="max-w-60">
                 <SidebarMenuButton
                   asChild

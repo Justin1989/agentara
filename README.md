@@ -60,12 +60,17 @@ Meet Tara, your 24/7 personal assistant powered by Claude Code. Multi-channel me
 ```bash
 # Clone the repository
 git clone https://github.com/magiccube/agentara.git
-cd agentara
 
 # Install dependencies
+cd agentara
+bun install
+
+# Install frontend dependencies
+cd web
 bun install
 
 # Start both backend and frontend in dev mode
+cd ..
 bun run dev
 ```
 

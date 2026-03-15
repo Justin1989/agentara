@@ -14,3 +14,4 @@ project: Agentara
   - For example, instead of `import { logger } from "@/shared/logging"`, use `import { logger } from "@/shared"`.
 - Use `context7` when you're working with `bunqueue`.
 - IMPORTANT: No more Korean, I'm Chinese!
+- When adding a new page, always check `web/src/components/app-breadcrumb.tsx` and `web/src/components/app-sidebar.tsx` to add the route and nav entry.

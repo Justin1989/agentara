@@ -259,3 +259,40 @@ export function useSoulMemoryUpdate() {
     },
   });
 }
+
+// --- Usage ---
+
+export interface ClaudeUsage {
+  five_hour: {
+    utilization: number;
+    resets_at: string;
+  };
+  seven_day: {
+    utilization: number;
+    resets_at: string;
+  };
+  extra_usage: {
+    is_enabled: boolean;
+    monthly_limit: number | null;
+    used_credits: number | null;
+    utilization: number | null;
+  };
+}
+
+/**
+ * Fetches Claude usage data from /api/usage/claude.
+ */
+export function useClaudeUsage() {
+  return useQuery({
+    queryKey: ["usage", "claude"],
+    queryFn: async () => {
+      const res = await api.usage.claude.$get();
+      const json = (await res.json()) as { usage?: ClaudeUsage; error?: string };
+      if (!res.ok) {
+        throw new Error(json.error ?? "Failed to fetch usage");
+      }
+      if (!json.usage) throw new Error("Invalid usage response");
+      return json.usage;
+    },
+  });
+}

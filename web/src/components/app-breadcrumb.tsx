@@ -29,6 +29,7 @@ function buildBreadcrumbs(pathname: string): BreadcrumbItemConfig[] {
     sessions: "Sessions",
     skills: "Skills",
     tasks: "Tasks",
+    usage: "Usage",
   };
 
   let href = "";

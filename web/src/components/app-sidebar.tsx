@@ -9,6 +9,7 @@ import {
   MoreHorizontal,
   SparklesIcon,
   Trash2,
+  BarChart3Icon,
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -54,6 +55,7 @@ const navItems = [
   { title: "Cronjobs", icon: CalendarClockIcon, to: "/cronjobs" },
   { title: "Skills", icon: SparklesIcon, to: "/skills" },
   { title: "Memory", icon: BrainCircuitIcon, to: "/memory" },
+  { title: "Usage", icon: BarChart3Icon, to: "/usage" },
 ] as const;
 
 function NavSidebarGroup() {

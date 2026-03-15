@@ -16,6 +16,7 @@ import {
   sessionRoutes,
   skillsRoutes,
   taskRoutes,
+  usageRoutes,
 } from "./routes";
 
 /**
@@ -37,6 +38,7 @@ function createApp() {
       .route("/api/sessions", sessionRoutes)
       .route("/api/skills", skillsRoutes)
       .route("/api/tasks", taskRoutes)
+      .route("/api/usage", usageRoutes)
   );
 }
 

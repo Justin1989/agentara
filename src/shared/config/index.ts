@@ -58,6 +58,12 @@ try {
  * `paths` is always available. Other properties require `config.yaml` to be loaded.
  */
 export const config = {
+  get timezone() {
+    if (!_appConfig) {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone;
+    }
+    return _appConfig.timezone;
+  },
   get agents() {
     if (!_appConfig) {
       throw new Error(

@@ -63,7 +63,11 @@ class BootLoader {
     const configPath = join(config.paths.home, "config.yaml");
     if (!existsSync(configPath)) {
       logger.info("config.yaml not found, generating default configuration...");
-      const defaultConfig = `agents:
+      const defaultTimezone =
+        Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const defaultConfig = `timezone: "${defaultTimezone}"
+
+agents:
   default:
     type: claude
 

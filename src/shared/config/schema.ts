@@ -55,6 +55,10 @@ export interface MessagingConfig extends z.infer<typeof MessagingConfig> {}
  * Top-level application configuration loaded from config.yaml.
  */
 export const AppConfig = z.object({
+  /** IANA timezone identifier, e.g. `"Asia/Shanghai"`. Defaults to the system timezone. */
+  timezone: z
+    .string()
+    .default(Intl.DateTimeFormat().resolvedOptions().timeZone),
   agents: AgentsConfig,
   tasking: TaskingConfig,
   messaging: MessagingConfig,

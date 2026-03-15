@@ -12,6 +12,7 @@ import type {
 } from "@/shared";
 import { config, createLogger, uuid } from "@/shared";
 
+
 import { scheduledTasks, tasks } from "./data";
 
 const QUEUE_NAME = "agentara:tasks";
@@ -253,6 +254,7 @@ export class TaskDispatcher {
         every: schedule.every,
         limit: schedule.limit,
         immediately: schedule.immediately,
+        timezone: config.timezone,
       },
       { name: "scheduled_task", data: jobData },
     );
@@ -368,6 +370,7 @@ export class TaskDispatcher {
           every: schedule.every,
           limit: schedule.limit,
           immediately: schedule.immediately,
+          timezone: config.timezone,
         },
         { name: "scheduled_task", data: jobData },
       );
@@ -555,6 +558,7 @@ export class TaskDispatcher {
             every: sched.every,
             limit: sched.limit,
             immediately: sched.immediately,
+            timezone: config.timezone,
           },
           { name: "scheduled_task", data: jobData },
         );

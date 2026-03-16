@@ -77,7 +77,7 @@ def generate_image(
             "generationConfig": {"imageConfig": {"aspectRatio": aspect_ratio}},
             "contents": [{"parts": [*parts, {"text": prompt}]}],
         },
-        timeout=90,
+        timeout=60 * 5,  # The official timeout is 5 minutes
     )
     response.raise_for_status()
     json = response.json()

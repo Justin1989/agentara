@@ -15,7 +15,7 @@ export interface FeishuPost {
   content?: PostElement[][];
 }
 
-function applyStyle(text: string, style?: string[]): string {
+function _applyStyle(text: string, style?: string[]): string {
   if (!style || style.length === 0) return text;
   let result = text;
   for (const s of style) {
@@ -39,23 +39,31 @@ function applyStyle(text: string, style?: string[]): string {
   return result;
 }
 
-function elementToMarkdown(el: PostElement): string {
+async function _elementToMarkdown(
+  el: PostElement,
+  downloadMessageResource: (
+    // eslint-disable-next-line no-unused-vars
+    file_key: string,
+  ) => Promise<string>,
+): Promise<string> {
   switch (el.tag) {
     case "text":
-      return applyStyle(el.text, el.style);
+      return _applyStyle(el.text, el.style);
     case "a":
-      return applyStyle(`[${el.text}](${el.href})`, el.style);
+      return _applyStyle(`[${el.text}](${el.href})`, el.style);
     case "at":
-      return applyStyle(
+      return _applyStyle(
         `@${el.user_name || el.user_id.replace(/^@_/, "")}`,
         el.style,
       );
     case "img":
-      return `![图片](${el.image_key})`;
+      const imagePath = await downloadMessageResource(el.image_key);
+      return `![image](${imagePath})`;
     case "media":
-      return `[视频](${el.file_key})`;
+      const videoPath = await downloadMessageResource(el.file_key);
+      return `[video](${videoPath})`;
     case "emotion":
-      return `[表情:${el.emoji_type}]`;
+      return `[emotion:${el.emoji_type}]`;
     case "code_block":
       return `\n\`\`\`${el.language}\n${el.text}\n\`\`\`\n`;
     case "hr":
@@ -69,7 +77,11 @@ function elementToMarkdown(el: PostElement): string {
  * Convert Feishu post (rich text) to Markdown.
  * Supports: text, a, at, img, media, emotion, code_block, hr.
  */
-export function convertPostToMarkdown(post: FeishuPost): string {
+export async function convertPostToMarkdown(
+  post: FeishuPost,
+  // eslint-disable-next-line no-unused-vars
+  downloadMessageResource: (file_key: string) => Promise<string>,
+): Promise<string> {
   const { title, content } = post;
   const lines: string[] = [];
 
@@ -84,9 +96,13 @@ export function convertPostToMarkdown(post: FeishuPost): string {
 
   for (const paragraph of content) {
     if (!Array.isArray(paragraph)) continue;
-    const parts = paragraph
-      .map((el) => elementToMarkdown(el as PostElement))
-      .filter(Boolean);
+    const parts = (
+      await Promise.all(
+        paragraph.map((el) =>
+          _elementToMarkdown(el as PostElement, downloadMessageResource),
+        ),
+      )
+    ).filter(Boolean);
     if (parts.length > 0) {
       lines.push(parts.join(""));
     }

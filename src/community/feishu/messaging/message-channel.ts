@@ -299,7 +299,10 @@ export class FeishuMessageChannel
         text: json.text,
       };
     } else if (type === "post") {
-      const markdown = convertPostToMarkdown(json);
+      const markdown = await convertPostToMarkdown(
+        json,
+        this._downloadMessageResource.bind(this, messageId),
+      );
       return {
         type: "text",
         text: markdown,

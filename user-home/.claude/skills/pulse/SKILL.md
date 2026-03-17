@@ -148,7 +148,7 @@ Language: Chinese (full-width punctuation: ，、：！？。）for prose; Engli
 ```markdown
 # 📡 Pulse | {🌅 or 🌆} — {YYYY年M月D日}
 
-## <font color="blue">🚀 Product Hunts</font>
+## <font color="red">🚀 Product Hunts</font>
 
 - **[Product Name](https://www.producthunt.com/posts/slug)** {upvotes if available}
 简短介绍与点评（简体中文）。
@@ -160,7 +160,7 @@ Language: Chinese (full-width punctuation: ，、：！？。）for prose; Engli
 
 ---
 
-## <font color="blue">🔥 GitHub Trending</font>
+## <font color="red">🔥 GitHub Trending</font>
 
 - **[owner/repo](https://github.com/owner/repo)** ⭐ {total stars} (+{today})
 Description。{Language}。简短点评（简体中文）。
@@ -172,7 +172,7 @@ Description。{Language}。简短点评（简体中文）。
 
 ---
 
-## <font color="blue">📰 News</font>
+## <font color="red">📰 News</font>
 
 - **[Headline](URL)**
 1–2 sentence summary（简体中文）。
@@ -184,7 +184,7 @@ Description。{Language}。简短点评（简体中文）。
 
 ---
 
-## <font color="blue">🎙️ Podcasts</font> (If exists updates)
+## <font color="red">🎙️ Podcasts</font> (If exists updates)
 
 - **[Episode Title](episode_url)** — Podcast Name
 shownotes 摘要（1-2 句简体中文总结）。
@@ -196,7 +196,7 @@ shownotes 摘要（1-2 句简体中文总结）。
 
 ---
 
-## <font color="blue">💰 Stock Market</font>
+## <font color="red">💰 Stock Market</font>
 
 **{公司名} · {市场} {代码}**
 
@@ -213,7 +213,7 @@ shownotes 摘要（1-2 句简体中文总结）。
 
 ---
 
-## <font color="blue">🌤️ Weather</font>
+## <font color="red">🌤️ Weather</font>
 
 **🧱 北京**
 - 今天：{emoji} {type}，{low}°C ~ {high}°C

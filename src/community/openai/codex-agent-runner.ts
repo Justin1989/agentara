@@ -20,8 +20,9 @@ const logger = createLogger("codex-agent-runner");
 /**
  * The agent runner for OpenAI Codex CLI.
  *
- * Spawns `codex exec --json --full-auto` and parses the JSONL event stream
- * produced by the Codex CLI into the Agentara message types.
+ * Spawns `codex exec --json --dangerously-bypass-approvals-and-sandbox`
+ * and parses the JSONL event stream produced by the Codex CLI into the
+ * Agentara message types.
  */
 export class CodexAgentRunner implements AgentRunner {
   readonly type = "codex";
@@ -440,7 +441,7 @@ export class CodexAgentRunner implements AgentRunner {
       "exec",
       ...["--model", config.agents.default.model],
       "--json",
-      "--full-auto",
+      "--dangerously-bypass-approvals-and-sandbox",
       "--skip-git-repo-check",
     ];
     if (isNew) {

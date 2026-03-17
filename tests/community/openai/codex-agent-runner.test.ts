@@ -428,5 +428,7 @@ describe("CodexAgentRunner._parseStreamLine", () => {
 
     expect(args).toContain("resume");
     expect(args).toContain("codex-thread-123");
+    expect(args).toContain("--dangerously-bypass-approvals-and-sandbox");
+    expect(args).not.toContain("--full-auto");
   });
 });

@@ -319,11 +319,14 @@ WORKSPACE = Path.home() / ".agentara" / "workspace"
 
 
 def generate_stock_chart(code: str, rows: list[dict]) -> str | None:
-    """Generate a 45-day line chart (3:2 aspect). No CJK text — matplotlib safe."""
+    """Generate a 45-day line chart (3:2 aspect). Gradient fill: green=down, red=up."""
+    import numpy as np
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt
     import matplotlib.dates as mdates
+    import matplotlib.colors as mcolors
+    from matplotlib.colors import LinearSegmentedColormap
 
     if len(rows) < 2:
         return None
@@ -333,16 +336,33 @@ def generate_stock_chart(code: str, rows: list[dict]) -> str | None:
     latest = rows[-1]
     prev = rows[-2]["close"]
     change_pct = (latest["close"] - prev) / prev * 100 if prev else 0
-    is_up = latest["close"] >= rows[0]["close"]
+    is_up = latest["close"] >= prev  # 当天涨跌
 
-    # --- Style (3:2 ratio) ---
-    accent = "#E74C3C" if not is_up else "#2ECC71"
+    # --- Style (3:2 ratio). Green=当天跌, Red=当天涨 ---
+    accent = "#2ECC71" if not is_up else "#E74C3C"
     fig, ax = plt.subplots(figsize=(7.5, 5), facecolor="white")
     ax.set_facecolor("white")
 
-    # Gradient fill under the line
-    ax.fill_between(dates, closes, min(closes) * 0.998, alpha=0.08, color=accent, linewidth=0)
-    ax.plot(dates, closes, color=accent, linewidth=2.2, solid_capstyle="round")
+    # Gradient fill under the line (bottom=strong, top=transparent)
+    y_base = min(closes) * 0.998
+    y_max = max(closes)
+    xlims = mdates.date2num([dates[0], dates[-1]])
+    yv = np.linspace(0, 1, 80)
+    zv = np.tile(yv.reshape(-1, 1), (1, 50))
+    rgb = mcolors.to_rgba(accent)[:3]
+    cmap = LinearSegmentedColormap.from_list(
+        "stock_grad", [(*rgb, 0.02), (*rgb, 0.38)], N=256
+    )
+    ax.imshow(
+        zv,
+        cmap=cmap,
+        aspect="auto",
+        origin="lower",
+        extent=[xlims[0], xlims[1], y_base, y_max],
+        zorder=0,
+    )
+    ax.fill_between(dates, closes, y_max, color="white", linewidth=0, zorder=1)
+    ax.plot(dates, closes, color=accent, linewidth=1.2, solid_capstyle="round", zorder=2)
 
     # Latest price dot
     ax.scatter([dates[-1]], [closes[-1]], color=accent, s=50, zorder=5, edgecolors="white", linewidths=1.5)

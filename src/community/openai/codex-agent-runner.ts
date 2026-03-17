@@ -32,6 +32,7 @@ export class CodexAgentRunner implements AgentRunner {
   ): AsyncIterableIterator<SystemMessage | AssistantMessage | ToolMessage> {
     const sessionId = message.session_id;
     const isNew = options?.isNewSession ?? false;
+    const resumeId = options.runnerSessionId ?? sessionId;
     const textContentOfUserMessage = JSON.stringify(
       extractTextContent(message),
     );
@@ -40,27 +41,11 @@ export class CodexAgentRunner implements AgentRunner {
     // picks up the latest content (e.g. updated @memory/USER.md).
     this._syncAgentsMd(options.cwd);
 
-    const args = isNew
-      ? [
-          "codex",
-          "exec",
-          ...["--model", config.agents.default.model],
-          "--json",
-          "--full-auto",
-          "--skip-git-repo-check",
-          textContentOfUserMessage,
-        ]
-      : [
-          "codex",
-          "exec",
-          ...["--model", config.agents.default.model],
-          "--json",
-          "--full-auto",
-          "--skip-git-repo-check",
-          "resume",
-          sessionId,
-          textContentOfUserMessage,
-        ];
+    const args = this._buildExecArgs({
+      isNew,
+      resumeId,
+      prompt: textContentOfUserMessage,
+    });
 
     const proc = Bun.spawn(args, {
       cwd: options.cwd,
@@ -276,11 +261,7 @@ export class CodexAgentRunner implements AgentRunner {
         if (eventType !== "item.completed") return [];
         const changes: Array<{ path: string; kind: string }> =
           item.changes ?? [];
-        const summary = changes
-          .map(
-            (c: { path: string; kind: string }) => `${c.kind}: ${c.path}`,
-          )
-          .join("\n");
+        const filePath = this._formatFileChangePath(changes);
         return [
           {
             id: itemId,
@@ -291,7 +272,7 @@ export class CodexAgentRunner implements AgentRunner {
                 type: "tool_use" as const,
                 name: "Edit",
                 id: itemId,
-                input: { changes: summary },
+                input: { file_path: filePath },
               },
             ],
           },
@@ -355,6 +336,10 @@ export class CodexAgentRunner implements AgentRunner {
 
       case "web_search": {
         if (eventType !== "item.completed") return [];
+        const query = this._resolveWebSearchQuery(item);
+        if (!query) {
+          return [];
+        }
         return [
           {
             id: itemId,
@@ -365,7 +350,7 @@ export class CodexAgentRunner implements AgentRunner {
                 type: "tool_use" as const,
                 name: "WebSearch",
                 id: itemId,
-                input: { query: item.query ?? "" },
+                input: { query },
               },
             ],
           },
@@ -377,7 +362,7 @@ export class CodexAgentRunner implements AgentRunner {
               {
                 type: "tool_result" as const,
                 tool_use_id: itemId,
-                content: `Web search completed for: ${item.query ?? ""}`,
+                content: `Web search completed for: ${query}`,
               },
             ],
           },
@@ -405,6 +390,65 @@ export class CodexAgentRunner implements AgentRunner {
     }
   }
 
+  private _formatFileChangePath(
+    changes: Array<{ path: string; kind: string }>,
+  ): string {
+    const paths = changes
+      .map((change) => change.path?.trim())
+      .filter((path): path is string => Boolean(path));
+
+    if (paths.length === 0) {
+      return "(unknown file)";
+    }
+    if (paths.length === 1) {
+      return paths[0]!;
+    }
+    return `${paths[0]} (+${paths.length - 1} more)`;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private _resolveWebSearchQuery(item: any): string | undefined {
+    const candidates = [
+      item?.query,
+      item?.search_query,
+      item?.input?.query,
+      item?.arguments?.query,
+      item?.payload?.query,
+      item?.action?.query,
+    ];
+
+    for (const candidate of candidates) {
+      if (typeof candidate === "string" && candidate.trim() !== "") {
+        return candidate.trim();
+      }
+    }
+
+    return undefined;
+  }
+
+  private _buildExecArgs({
+    isNew,
+    resumeId,
+    prompt,
+  }: {
+    isNew: boolean;
+    resumeId: string;
+    prompt: string;
+  }): string[] {
+    const shared = [
+      "codex",
+      "exec",
+      ...["--model", config.agents.default.model],
+      "--json",
+      "--full-auto",
+      "--skip-git-repo-check",
+    ];
+    if (isNew) {
+      return [...shared, prompt];
+    }
+    return [...shared, "resume", resumeId, prompt];
+  }
+
   /**
    * Reads `CLAUDE.md` from `cwd`, resolves any `@path/file` imports, and
    * writes the result as `AGENTS.md` so the Codex CLI can pick it up as its
@@ -422,18 +466,19 @@ export class CodexAgentRunner implements AgentRunner {
       if (!resolved) {
         return;
       }
+      const normalized = resolved.replaceAll("Claude Code", "Codex");
 
       const agentsMdPath = join(cwd, "AGENTS.md");
 
       // Skip write when contents are identical to avoid file-watcher churn.
       if (existsSync(agentsMdPath)) {
         const existing = readFileSync(agentsMdPath, "utf-8");
-        if (existing === resolved) {
+        if (existing === normalized) {
           return;
         }
       }
 
-      writeFileSync(agentsMdPath, resolved, "utf-8");
+      writeFileSync(agentsMdPath, normalized, "utf-8");
       logger.info("Synced CLAUDE.md → AGENTS.md (with resolved imports)");
     } catch (err) {
       logger.warn({ err }, "Failed to sync CLAUDE.md → AGENTS.md");

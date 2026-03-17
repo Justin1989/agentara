@@ -22,6 +22,30 @@ import { renderMessageCard } from "./message-renderer";
 import type { MessageReceiveEventData } from "./types";
 import { convertPostToMarkdown } from "./utils";
 
+function _isFeishuBadRequestError(err: unknown): boolean {
+  if (!err || typeof err !== "object") {
+    return false;
+  }
+
+  const candidate = err as {
+    status?: number;
+    code?: number | string;
+    response?: {
+      status?: number;
+      data?: {
+        code?: number | string;
+      };
+    };
+  };
+
+  return (
+    candidate.status === 400 ||
+    candidate.code === 400 ||
+    candidate.response?.status === 400 ||
+    candidate.response?.data?.code === 400
+  );
+}
+
 /** Message channel implementation for Feishu (Lark) chat platform. */
 export class FeishuMessageChannel
   extends EventEmitter<MessageChannelEventTypes>
@@ -32,6 +56,7 @@ export class FeishuMessageChannel
   private _inboundClient: WSClient;
   private _client: Client;
   private _db: DrizzleDB;
+  private _failedCardUpdateMessages = new Set<string>();
   private _logger: Logger;
 
   /**
@@ -84,6 +109,9 @@ export class FeishuMessageChannel
       streaming,
       uploadImage: this.uploadImage.bind(this),
     });
+    if (!streaming) {
+      this._logOutboundMessage(message.session_id, message.content);
+    }
     const { data: replyMessage } = await this._client.im.message.reply({
       path: {
         message_id: messageId,
@@ -108,7 +136,10 @@ export class FeishuMessageChannel
     if (!streaming) {
       const lastText = message.content.filter((c) => c.type === "text").pop();
       if (lastText?.type === "text") {
-        await this._sendLocalFileAttachments(assistantMessage.id, lastText.text);
+        await this._sendLocalFileAttachments(
+          assistantMessage.id,
+          lastText.text,
+        );
       }
     }
 
@@ -122,6 +153,7 @@ export class FeishuMessageChannel
       streaming: false,
       uploadImage: this.uploadImage.bind(this),
     });
+    this._logOutboundMessage(message.session_id, message.content);
     const { data } = await this._client.im.message.create({
       params: {
         receive_id_type: "chat_id",
@@ -178,18 +210,38 @@ export class FeishuMessageChannel
     message: AssistantMessage,
     { streaming = true }: { streaming?: boolean } = {},
   ): Promise<void> {
+    if (this._failedCardUpdateMessages.has(message.id)) {
+      return;
+    }
+
     const card = await renderMessageCard(message.content, {
       streaming,
       uploadImage: this.uploadImage.bind(this),
     });
-    await this._client.im.message.patch({
-      path: {
-        message_id: message.id,
-      },
-      data: {
-        content: JSON.stringify(card),
-      },
-    });
+    if (!streaming) {
+      this._logOutboundMessage(message.session_id, message.content);
+    }
+    try {
+      await this._client.im.message.patch({
+        path: {
+          message_id: message.id,
+        },
+        data: {
+          content: JSON.stringify(card),
+        },
+      });
+    } catch (err) {
+      if (_isFeishuBadRequestError(err)) {
+        this._failedCardUpdateMessages.add(message.id);
+        this._logger.warn(
+          { err, message_id: message.id, session_id: message.session_id },
+          "Feishu card update failed with 400; sending fallback reply",
+        );
+        await this._replyUpdateFailureMessage(message.id);
+        return;
+      }
+      throw err;
+    }
 
     if (!streaming) {
       const lastText = message.content.filter((c) => c.type === "text").pop();
@@ -377,6 +429,37 @@ export class FeishuMessageChannel
         );
       }
     }
+  }
+
+  private async _replyUpdateFailureMessage(messageId: string): Promise<void> {
+    try {
+      await this._client.im.message.reply({
+        path: {
+          message_id: messageId,
+        },
+        data: {
+          msg_type: "text",
+          content: JSON.stringify({
+            text: "抱歉，这条消息更新失败了，请稍后重试。",
+          }),
+          reply_in_thread: true,
+        },
+      });
+    } catch (err) {
+      this._logger.warn(
+        { err, message_id: messageId },
+        "Failed to send fallback reply after Feishu card update error",
+      );
+    }
+  }
+
+  private _logOutboundMessage(
+    sessionId: string,
+    content: AssistantMessage["content"],
+  ) {
+    const lastText = content.filter((item) => item.type === "text").pop();
+    const finalText = lastText?.type === "text" ? lastText.text : null;
+    this._logger.info([sessionId, finalText], "Final Feishu outbound content");
   }
 
   private _handleMessageReceive = async ({

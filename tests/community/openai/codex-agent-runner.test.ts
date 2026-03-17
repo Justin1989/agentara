@@ -1,13 +1,24 @@
-import { describe, expect, test } from "bun:test";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
+import { afterEach, describe, expect, test } from "bun:test";
 
 import { CodexAgentRunner } from "@/community/openai";
 
 const SESSION_ID = "test-session-1";
+const tempDirs: string[] = [];
 
 function parse(line: string) {
   const runner = new CodexAgentRunner();
   return runner._parseStreamLine(line, SESSION_ID);
 }
+
+afterEach(() => {
+  while (tempDirs.length > 0) {
+    rmSync(tempDirs.pop()!, { recursive: true, force: true });
+  }
+});
 
 describe("CodexAgentRunner._parseStreamLine", () => {
   test("returns SystemMessage for thread.started", () => {
@@ -145,7 +156,7 @@ describe("CodexAgentRunner._parseStreamLine", () => {
           type: "tool_use",
           name: "Edit",
           id: "fc-1",
-          input: { changes: "update: src/index.ts\nadd: src/utils.ts" },
+          input: { file_path: "src/index.ts (+1 more)" },
         },
       ],
     });
@@ -262,6 +273,45 @@ describe("CodexAgentRunner._parseStreamLine", () => {
     });
   });
 
+  test("uses alternate query fields for web_search item.completed", () => {
+    const line = JSON.stringify({
+      type: "item.completed",
+      item: {
+        id: "ws-2",
+        type: "web_search",
+        search_query: "OpenAI API docs",
+      },
+    });
+    const msgs = parse(line);
+    expect(msgs).toHaveLength(2);
+    expect(msgs[0]).toMatchObject({
+      id: "ws-2",
+      session_id: SESSION_ID,
+      role: "assistant",
+      content: [
+        {
+          type: "tool_use",
+          name: "WebSearch",
+          id: "ws-2",
+          input: { query: "OpenAI API docs" },
+        },
+      ],
+    });
+  });
+
+  test("skips web_search without a usable query", () => {
+    const line = JSON.stringify({
+      type: "item.completed",
+      item: {
+        id: "ws-3",
+        type: "web_search",
+        query: "",
+      },
+    });
+    const msgs = parse(line);
+    expect(msgs).toHaveLength(0);
+  });
+
   test("returns AssistantMessage for turn.failed", () => {
     const line = JSON.stringify({
       type: "turn.failed",
@@ -343,5 +393,40 @@ describe("CodexAgentRunner._parseStreamLine", () => {
   test("runner type is codex", () => {
     const runner = new CodexAgentRunner();
     expect(runner.type).toBe("codex");
+  });
+
+  test("syncing AGENTS.md replaces Claude Code with Codex", () => {
+    const cwd = mkdtempSync(join(tmpdir(), "agentara-codex-runner-"));
+    tempDirs.push(cwd);
+    writeFileSync(
+      join(cwd, "CLAUDE.md"),
+      "# Title\n\nAs Claude Code, you are the smartest coding agent.\n",
+      "utf-8",
+    );
+
+    const runner = new CodexAgentRunner() as unknown as Record<
+      string,
+      CallableFunction
+    >;
+    runner["_syncAgentsMd"]!(cwd);
+
+    const agents = readFileSync(join(cwd, "AGENTS.md"), "utf-8");
+    expect(agents).toContain("As Codex, you are the smartest coding agent.");
+    expect(agents).not.toContain("Claude Code");
+  });
+
+  test("builds resume args with runnerSessionId when available", () => {
+    const runner = new CodexAgentRunner() as unknown as Record<
+      string,
+      CallableFunction
+    >;
+    const args = runner["_buildExecArgs"]!({
+      isNew: false,
+      resumeId: "codex-thread-123",
+      prompt: "\"hello\"",
+    }) as string[];
+
+    expect(args).toContain("resume");
+    expect(args).toContain("codex-thread-123");
   });
 });

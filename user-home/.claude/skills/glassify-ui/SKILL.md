@@ -99,8 +99,8 @@ Each one becomes an entry in `micro_elements` — a separate floating glass bric
 ```
 
 `type` values: `button_primary`, `button_secondary`, `toggle_switch`, `pill_chip`,
-`dropdown_trigger`, `icon_button`, `cta_submit`.  
-`shape` values: `rectangle`, `pill`, `circle`, `square`.  
+`dropdown_trigger`, `icon_button`, `cta_submit`.
+`shape` values: `rectangle`, `pill`, `circle`, `square`.
 `tint` values: `accent_blue`, `accent_teal`, `neutral_white`, `clear`, `warm_white`, `cool_white`.
 
 ---
@@ -143,8 +143,7 @@ Produce exactly this structure. No extra fields, no prose, no markdown around th
     "no technical labels in scene",
     "no dark mode UI",
     "no dark backgrounds on UI panels",
-    "no warm golden light",
-    "no yellow color cast"
+    "no `Layer 1`, `Layer 2`, ..., `Layer N` callouts and annotations"
   ],
 
   "layers": [

@@ -298,6 +298,7 @@ STOCK_INDICES = [
     {"symbol": "sz399001", "name": "SZSE Component", "name_cn": "深证成指", "market": "SZSE", "source": "sina"},
     {"symbol": "^ndq", "name": "NASDAQ Composite", "name_cn": "纳斯达克综合", "market": "NASDAQ", "source": "stooq"},
     {"symbol": "^dji", "name": "Dow Jones", "name_cn": "道琼斯工业", "market": "NYSE", "source": "stooq"},
+    {"symbol": "^spx", "name": "S&P 500", "name_cn": "标普500", "market": "NYSE", "source": "stooq"},
 ]
 
 

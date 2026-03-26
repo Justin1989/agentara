@@ -1,6 +1,6 @@
 import type { Job } from "bunqueue/client";
 import { Queue, Worker } from "bunqueue/client";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 
 import type { DrizzleDB } from "@/data";
 import type {
@@ -502,6 +502,30 @@ export class TaskDispatcher {
       .where(and(eq(tasks.session_id, sessionId), eq(tasks.status, "running")))
       .get();
     return row?.id;
+  }
+
+  /**
+   * Get a pending or running task by its inbound message ID.
+   * @param messageId - The Feishu message ID to look up.
+   * @returns The task ID if found, undefined otherwise.
+   */
+  getTaskByMessageId(messageId: string): string | undefined {
+    const rows = this._db
+      .select({ id: tasks.id, payload: tasks.payload })
+      .from(tasks)
+      .where(inArray(tasks.status, ["pending", "running"]))
+      .all();
+
+    for (const row of rows) {
+      const payload = row.payload as TaskPayload;
+      if (
+        payload.type === "inbound_message" &&
+        payload.message.id === messageId
+      ) {
+        return row.id;
+      }
+    }
+    return undefined;
   }
 
   /**

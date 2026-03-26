@@ -98,6 +98,7 @@ class Kernel {
       );
     }
     this._messageGateway.on("message:inbound", this._handleInboundMessage);
+    this._messageGateway.on("message:recalled", this._handleMessageRecall);
   }
 
   /**
@@ -144,6 +145,20 @@ class Kernel {
         session_id: sessionId,
         content: [{ type: "text", text: "No running task found." }],
       });
+    }
+  };
+
+  private _handleMessageRecall = async (
+    messageId: string,
+    channelId: string,
+  ) => {
+    const taskId = this._taskDispatcher.getTaskByMessageId(messageId);
+    if (taskId) {
+      await this._taskDispatcher.deleteTask(taskId);
+      this._logger.info(
+        { message_id: messageId, task_id: taskId, channel_id: channelId },
+        "task stopped due to message recall",
+      );
     }
   };
 

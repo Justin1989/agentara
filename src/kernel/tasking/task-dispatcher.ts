@@ -1,6 +1,6 @@
 import type { Job } from "bunqueue/client";
 import { Queue, Worker } from "bunqueue/client";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 import type { DrizzleDB } from "@/data";
 import type {
@@ -488,6 +488,20 @@ export class TaskDispatcher {
    */
   getScheduledTasks(): ScheduledTaskRow[] {
     return this._db.select().from(scheduledTasks).all() as ScheduledTaskRow[];
+  }
+
+  /**
+   * Get the currently running task for a session, if any.
+   * @param sessionId - The session ID to look up.
+   * @returns The task ID if found, undefined otherwise.
+   */
+  getRunningTaskForSession(sessionId: string): string | undefined {
+    const row = this._db
+      .select({ id: tasks.id })
+      .from(tasks)
+      .where(and(eq(tasks.session_id, sessionId), eq(tasks.status, "running")))
+      .get();
+    return row?.id;
   }
 
   /**

@@ -111,11 +111,40 @@ class Kernel {
   }
 
   private _handleInboundMessage = async (message: UserMessage) => {
+    const text = extractTextContent(message).trim();
+
+    // Handle /stop command
+    if (text === "/stop") {
+      await this._handleStopCommand(message);
+      return;
+    }
+
     const task: InboundMessageTaskPayload = {
       type: "inbound_message",
       message,
     };
     await this._taskDispatcher.dispatch(message.session_id, task);
+  };
+
+  private _handleStopCommand = async (message: UserMessage) => {
+    const sessionId = message.session_id;
+    const runningTaskId =
+      this._taskDispatcher.getRunningTaskForSession(sessionId);
+
+    if (runningTaskId) {
+      await this._taskDispatcher.deleteTask(runningTaskId);
+      await this._messageGateway.replyMessage(message.id, {
+        role: "assistant",
+        session_id: sessionId,
+        content: [{ type: "text", text: "Task stopped." }],
+      });
+    } else {
+      await this._messageGateway.replyMessage(message.id, {
+        role: "assistant",
+        session_id: sessionId,
+        content: [{ type: "text", text: "No running task found." }],
+      });
+    }
   };
 
   private _handleInboundMessageTask = async (
